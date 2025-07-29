@@ -3,6 +3,7 @@ import type { Schema } from "../amplify/data/resource";
 import { generateClient } from "aws-amplify/data";
 import { useAuthenticator } from '@aws-amplify/ui-react';
 import { get } from 'aws-amplify/api';
+import { fetchAuthSession } from "aws-amplify/auth";
 
 const client = generateClient<Schema>();
 
@@ -22,9 +23,19 @@ function App() {
 
   async function fetchSensorData() {
     try {
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+  
+      if (!idToken) throw new Error("No ID token found");
+  
       const restOp = get({
         apiName: "SensorAPI",
-        path: "/sensor-readings"
+        path: "/sensor-readings",
+        options: {
+          headers: {
+            Authorization: idToken, // 🔒 Attach JWT
+          },
+        },
       });
       const { body } = await restOp.response;
       const json = await body.json();
