@@ -24,7 +24,7 @@ function App() {
     try {
       const restOp = get({
         apiName: "SensorAPI",
-        path: "/readings"
+        path: "/sensor-readings"
       });
       const { body } = await restOp.response;
       const json = await body.json();
