@@ -20,7 +20,7 @@ Amplify.configure({
     ...amplifyConfig.API,
     REST: {
       ...amplifyConfig.API?.REST,
-      SensorAPI: {
+      ColdChainMonitoringAPI: {
         endpoint: apiUrl,
         region: "us-east-2"
       }
