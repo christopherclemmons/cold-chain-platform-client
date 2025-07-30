@@ -1,7 +1,20 @@
 import { useEffect, useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 
-type SensorDataItem = Record<string, any>;
+interface SensorDataItem {
+  deviceId: string;
+  timestamp: string;
+  temperature: number;
+  humidity: number;
+  battery?: number;
+  status?: string;
+  type?: string;
+  facility?: string;
+  zone?: string;
+  lat?: number;
+  lon?: number;
+  [key: string]: any;
+}
 
 const PAGE_SIZE = 10;
 
@@ -35,12 +48,25 @@ function App() {
       }
 
       const readingsData = await readingsRes.json();
-      if (Array.isArray(readingsData)) {
-        setSensorData(readingsData);
-      } else {
-        console.warn("⚠️ Unexpected readings response:", readingsData);
-        setSensorData([]);
-      }
+      const flattened = (readingsData || []).map((item: any): SensorDataItem => {
+        const locationMap = item.location?.M || {};
+        const gpsMap = locationMap.gps?.M || {};
+
+        return {
+          deviceId: item.deviceId?.S,
+          timestamp: item.timestamp?.S,
+          temperature: parseFloat(item.temperature?.N),
+          humidity: parseFloat(item.humidity?.N),
+          battery: item.battery ? parseFloat(item.battery.N) : undefined,
+          status: item.status?.S,
+          type: item.type?.S,
+          facility: locationMap.facility?.S,
+          zone: locationMap.zone?.S,
+          lat: gpsMap.lat?.N ? parseFloat(gpsMap.lat.N) : undefined,
+          lon: gpsMap.lon?.N ? parseFloat(gpsMap.lon.N) : undefined,
+        };
+      });
+      setSensorData(flattened);
 
       const sensorsRes = await fetch(apiUrl + "/sensors", {
         method: "GET",
@@ -54,11 +80,8 @@ function App() {
 
       const sensorsData = await sensorsRes.json();
       if (Array.isArray(sensorsData)) {
-        setUniqueDevices(
-          sensorsData.map((d) => unwrapValue(d.deviceId || d.deviceID || ""))
-        );
+        setUniqueDevices(sensorsData.map((d) => d.deviceId?.S || d.deviceID?.S || ""));
       } else {
-        console.warn("⚠️ Unexpected sensors response:", sensorsData);
         setUniqueDevices([]);
       }
 
@@ -71,21 +94,12 @@ function App() {
     }
   }
 
-  const unwrapValue = (value: any): string => {
-    if (typeof value !== "object" || value === null) return String(value);
-    if ("S" in value) return value.S;
-    if ("N" in value) return value.N;
-    if ("BOOL" in value) return String(value.BOOL);
-    return JSON.stringify(value);
-  };
-
   const startIdx = currentPage * PAGE_SIZE;
   const endIdx = startIdx + PAGE_SIZE;
   const paginatedData = sensorData.slice(startIdx, endIdx);
 
   return (
     <div style={{ display: "flex", fontFamily: "sans-serif", height: "100vh" }}>
-      {/* Sidebar */}
       <aside style={{ width: "200px", background: "#1E293B", color: "#fff", padding: "1rem" }}>
         <h2>📦 Cold Chain</h2>
         <button
@@ -104,11 +118,9 @@ function App() {
         </button>
       </aside>
 
-      {/* Main Content */}
       <main style={{ flexGrow: 1, padding: "2rem", backgroundColor: "#F8FAFC" }}>
         <h1 style={{ marginBottom: "1rem" }}>📊 Sensor Dashboard</h1>
 
-        {/* Metrics */}
         <div style={{ display: "flex", gap: "1rem", marginBottom: "2rem", flexWrap: "wrap" }}>
           <div style={cardStyle}>
             <strong>Total Readings:</strong>
@@ -120,7 +132,6 @@ function App() {
           </div>
         </div>
 
-        {/* Table */}
         <section style={{ overflowX: "auto" }}>
           <h2 style={{ marginBottom: "0.5rem" }}>Sensor Readings</h2>
 
@@ -133,7 +144,7 @@ function App() {
               <table style={{ width: "100%", borderCollapse: "collapse", backgroundColor: "#fff" }}>
                 <thead>
                   <tr>
-                    {Object.keys(sensorData[0]).map((key) => (
+                    {Object.keys(paginatedData[0]).map((key) => (
                       <th
                         key={key}
                         style={{
@@ -151,16 +162,16 @@ function App() {
                 <tbody>
                   {paginatedData.map((item, idx) => (
                     <tr key={idx}>
-                      {Object.entries(item).map(([_, value], i) => (
+                      {Object.entries(item).map(([key, value]) => (
                         <td
-                          key={i}
+                          key={key}
                           style={{
                             borderBottom: "1px solid #eee",
                             padding: "8px",
                             fontSize: "14px",
                           }}
                         >
-                          {unwrapValue(value)}
+                          {String(value)}
                         </td>
                       ))}
                     </tr>
@@ -168,7 +179,6 @@ function App() {
                 </tbody>
               </table>
 
-              {/* Pagination */}
               <div style={{ marginTop: "1rem", display: "flex", gap: "1rem" }}>
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(p - 1, 0))}
@@ -179,9 +189,7 @@ function App() {
                 </button>
                 <button
                   onClick={() =>
-                    setCurrentPage((p) =>
-                      endIdx < sensorData.length ? p + 1 : p
-                    )
+                    setCurrentPage((p) => (endIdx < sensorData.length ? p + 1 : p))
                   }
                   disabled={endIdx >= sensorData.length}
                   style={paginationButtonStyle}
