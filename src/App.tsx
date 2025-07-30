@@ -21,6 +21,7 @@ const PAGE_SIZE = 10;
 function App() {
   const [sensorData, setSensorData] = useState<SensorDataItem[]>([]);
   const [uniqueDevices, setUniqueDevices] = useState<string[]>([]);
+  const [excursionCount, setExcursionCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -85,12 +86,27 @@ function App() {
         setUniqueDevices([]);
       }
 
+      const excursionsRes = await fetch(apiUrl + "/excursions", {
+        method: "GET",
+        headers: { Authorization: idToken },
+      });
+
+      if (!excursionsRes.ok) {
+        const rawError = await excursionsRes.text();
+        throw new Error(`Excursions HTTP ${excursionsRes.status}: ${rawError}`);
+      }
+
+      const excursionsData = await excursionsRes.json();
+      const count = typeof excursionsData === 'string' ? JSON.parse(excursionsData).excursionCount : excursionsData.excursionCount;
+      setExcursionCount(count || 0);
+
       setError(null);
     } catch (err) {
       console.error("🚨 fetchSensorData error:", err);
       setError(err instanceof Error ? err.message : "Unknown error fetching sensor data");
       setSensorData([]);
       setUniqueDevices([]);
+      setExcursionCount(0);
     }
   }
 
@@ -130,6 +146,10 @@ function App() {
             <strong>Unique Devices:</strong>
             <span>{uniqueDevices.length}</span>
           </div>
+          <div style={cardStyle}>
+            <strong>Excursions:</strong>
+            <span>{excursionCount}</span>
+          </div>
         </div>
 
         <section style={{ overflowX: "auto" }}>
@@ -161,7 +181,10 @@ function App() {
                 </thead>
                 <tbody>
                   {paginatedData.map((item, idx) => (
-                    <tr key={idx}>
+                    <tr
+                      key={idx}
+                      style={{ backgroundColor: item.status === "ALERT" ? "#fde2e1" : "transparent" }}
+                    >
                       {Object.entries(item).map(([key, value]) => (
                         <td
                           key={key}
@@ -188,9 +211,7 @@ function App() {
                   ⬅️ Previous
                 </button>
                 <button
-                  onClick={() =>
-                    setCurrentPage((p) => (endIdx < sensorData.length ? p + 1 : p))
-                  }
+                  onClick={() => setCurrentPage((p) => (endIdx < sensorData.length ? p + 1 : p))}
                   disabled={endIdx >= sensorData.length}
                   style={paginationButtonStyle}
                 >
