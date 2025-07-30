@@ -75,7 +75,7 @@ function App() {
             <tbody>
               {sensorData.map((item, idx) => (
                 <tr key={idx}>
-                  {Object.entries(item).map(([key, value], i) => (
+                  {Object.entries(item).map(([_key, value], i) => (
                     <td key={i} style={{ borderBottom: "1px solid #eee", padding: "8px" }}>
                       {typeof value === "object" && value !== null
                         ? JSON.stringify(value)
