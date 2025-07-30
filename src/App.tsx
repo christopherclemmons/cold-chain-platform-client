@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchAuthSession } from "aws-amplify/auth";
+import { fetchAuthSession, signOut } from "aws-amplify/auth";
 
 interface SensorDataItem {
   deviceId: string;
@@ -110,6 +110,15 @@ function App() {
     }
   }
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Error signing out:", err);
+    }
+  };
+
   const startIdx = currentPage * PAGE_SIZE;
   const endIdx = startIdx + PAGE_SIZE;
   const paginatedData = sensorData.slice(startIdx, endIdx);
@@ -131,6 +140,20 @@ function App() {
           onClick={() => window.location.reload()}
         >
           Refresh
+        </button>
+        <button
+          style={{
+            background: "#EF4444",
+            border: "none",
+            padding: "0.5rem 1rem",
+            color: "#fff",
+            borderRadius: "4px",
+            marginTop: "1rem",
+            cursor: "pointer",
+          }}
+          onClick={handleLogout}
+        >
+          Log Out
         </button>
       </aside>
 
